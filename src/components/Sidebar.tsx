@@ -97,7 +97,7 @@ export default function Sidebar() {
           <span className="font-medium">ออกจากระบบ</span>
         </button>
         <div className="px-4 py-2 text-xs text-zinc-600">
-          v2.0.0 • Built with Next.js
+          v2.2.5 • Built with FN
         </div>
       </div>
     </aside>
