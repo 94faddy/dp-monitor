@@ -7,7 +7,6 @@ interface User {
   id: number;
   username: string;
   email: string;
-  full_name: string | null;
   role: 'admin' | 'user';
 }
 
@@ -17,7 +16,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (data: { username: string; email: string; password: string; full_name?: string }) => Promise<{ success: boolean; error?: string }>;
+  register: (data: { username: string; email: string; password: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -98,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Register
-  const register = async (data: { username: string; email: string; password: string; full_name?: string }) => {
+  const register = async (data: { username: string; email: string; password: string }) => {
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',

@@ -3,6 +3,10 @@ import { getUserDatabases, addUserDatabase, testConnection } from '@/lib/db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { UserDatabase } from '@/types';
 
+// Fixed values
+const FIXED_DB_NAME = 'joker555';
+const FIXED_TABLE_NAME = 'transactions';
+
 // Get user from token
 async function getAuthUser(request: Request) {
   const token = getTokenFromHeaders(request.headers);
@@ -22,9 +26,11 @@ export async function GET(request: Request) {
 
     const databases = await getUserDatabases(user.id);
     
-    // Hide password in response
+    // Hide sensitive data in response
     const safeData = databases.map(db => ({
       ...db,
+      host: '********',
+      db_user: '********',
       db_password: '********',
     }));
     
@@ -49,16 +55,16 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, note, host, port, db_user, db_password, db_name, table_name } = body;
+    const { name, note, host, port, db_user, db_password } = body;
 
-    if (!name || !host || !db_user || !db_password || !db_name) {
+    if (!name || !host || !db_user || !db_password) {
       return NextResponse.json(
         { success: false, error: 'กรุณากรอกข้อมูลให้ครบ' },
         { status: 400 }
       );
     }
 
-    // Test connection first
+    // Test connection first with fixed db_name and table_name
     const testDb: UserDatabase = {
       id: 0,
       user_id: user.id,
@@ -68,8 +74,8 @@ export async function POST(request: Request) {
       port: port || 3306,
       db_user,
       db_password,
-      db_name,
-      table_name: table_name || 'transactions',
+      db_name: FIXED_DB_NAME,
+      table_name: FIXED_TABLE_NAME,
       is_active: true,
       last_connected: null,
       created_at: '',
@@ -90,8 +96,8 @@ export async function POST(request: Request) {
       port: port || 3306,
       db_user,
       db_password,
-      db_name,
-      table_name: table_name || 'transactions',
+      db_name: FIXED_DB_NAME,
+      table_name: FIXED_TABLE_NAME,
     });
 
     if (!result.success) {

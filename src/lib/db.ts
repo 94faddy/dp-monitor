@@ -2,6 +2,10 @@ import mysql from 'mysql2/promise';
 import { query } from './mysql';
 import { UserDatabase, Transaction, TransactionSummary } from '@/types';
 
+// Fixed values
+const FIXED_DB_NAME = 'joker555';
+const FIXED_TABLE_NAME = 'transactions';
+
 // Get user databases
 export async function getUserDatabases(userId: number): Promise<UserDatabase[]> {
   const databases = await query<UserDatabase[]>(
@@ -32,14 +36,24 @@ export async function addUserDatabase(userId: number, data: {
   port: number;
   db_user: string;
   db_password: string;
-  db_name: string;
-  table_name: string;
+  db_name?: string;
+  table_name?: string;
 }): Promise<{ success: boolean; id?: number; error?: string }> {
   try {
     const result = await query<{ insertId: number }>(
       `INSERT INTO user_databases (user_id, name, note, host, port, db_user, db_password, db_name, table_name) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, data.name, data.note || null, data.host, data.port, data.db_user, data.db_password, data.db_name, data.table_name]
+      [
+        userId, 
+        data.name, 
+        data.note || null, 
+        data.host, 
+        data.port, 
+        data.db_user, 
+        data.db_password, 
+        data.db_name || FIXED_DB_NAME,  // Use fixed value
+        data.table_name || FIXED_TABLE_NAME  // Use fixed value
+      ]
     );
     return { success: true, id: (result as unknown as { insertId: number }).insertId };
   } catch (error) {
@@ -56,8 +70,6 @@ export async function updateUserDatabase(id: number, userId: number, data: Parti
   port: number;
   db_user: string;
   db_password: string;
-  db_name: string;
-  table_name: string;
   is_active: boolean;
 }>): Promise<{ success: boolean; error?: string }> {
   try {
@@ -70,9 +82,9 @@ export async function updateUserDatabase(id: number, userId: number, data: Parti
     if (data.port !== undefined) { fields.push('port = ?'); values.push(data.port); }
     if (data.db_user !== undefined) { fields.push('db_user = ?'); values.push(data.db_user); }
     if (data.db_password !== undefined) { fields.push('db_password = ?'); values.push(data.db_password); }
-    if (data.db_name !== undefined) { fields.push('db_name = ?'); values.push(data.db_name); }
-    if (data.table_name !== undefined) { fields.push('table_name = ?'); values.push(data.table_name); }
     if (data.is_active !== undefined) { fields.push('is_active = ?'); values.push(data.is_active ? 1 : 0); }
+
+    // Do not allow updating db_name and table_name - they are fixed
 
     if (fields.length === 0) {
       return { success: false, error: 'ไม่มีข้อมูลที่จะอัพเดท' };
@@ -111,14 +123,16 @@ export async function testConnection(db: UserDatabase): Promise<{ success: boole
       port: db.port,
       user: db.db_user,
       password: db.db_password,
-      database: db.db_name,
+      database: db.db_name || FIXED_DB_NAME,
       connectTimeout: 10000,
     });
     await connection.ping();
     await connection.end();
 
-    // Update last connected
-    await query('UPDATE user_databases SET last_connected = NOW() WHERE id = ?', [db.id]);
+    // Update last connected (only if id > 0, i.e., not a test connection)
+    if (db.id > 0) {
+      await query('UPDATE user_databases SET last_connected = NOW() WHERE id = ?', [db.id]);
+    }
 
     return { success: true };
   } catch (error) {
@@ -136,7 +150,7 @@ async function createUserDbConnection(db: UserDatabase) {
     port: db.port,
     user: db.db_user,
     password: db.db_password,
-    database: db.db_name,
+    database: db.db_name || FIXED_DB_NAME,
     connectTimeout: 10000,
   });
 }
@@ -170,6 +184,7 @@ export async function queryTransactions(
   } = {}
 ): Promise<{ transactions: Transaction[]; total: number }> {
   const connection = await createUserDbConnection(db);
+  const tableName = db.table_name || FIXED_TABLE_NAME;
 
   try {
     const conditions: string[] = ['hidden = 0']; // ไม่แสดงรายการที่ถูกยกเลิก (hidden = 1)
@@ -230,7 +245,7 @@ export async function queryTransactions(
 
     // Get total count
     const [countResult] = await connection.query(
-      `SELECT COUNT(*) as total FROM ${db.table_name} ${whereClause}`,
+      `SELECT COUNT(*) as total FROM ${tableName} ${whereClause}`,
       params
     );
     const total = (countResult as { total: number }[])[0].total;
@@ -240,7 +255,7 @@ export async function queryTransactions(
     const offset = options.offset || 0;
     
     const [rows] = await connection.query(
-      `SELECT * FROM ${db.table_name} ${whereClause} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM ${tableName} ${whereClause} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
 
@@ -267,6 +282,7 @@ export async function getTransactionSummary(
   } = {}
 ): Promise<TransactionSummary> {
   const connection = await createUserDbConnection(db);
+  const tableName = db.table_name || FIXED_TABLE_NAME;
 
   try {
     // Only successful transactions (status = 1) and not hidden (hidden = 0)
@@ -313,7 +329,7 @@ export async function getTransactionSummary(
         SUM(CASE WHEN tmw = 1 THEN 1 ELSE 0 END) as truemoneyCount,
         SUM(CASE WHEN tmw != 1 THEN amount ELSE 0 END) as bankAmount,
         SUM(CASE WHEN tmw = 1 THEN amount ELSE 0 END) as truemoneyAmount
-       FROM ${db.table_name} ${whereClause}`,
+       FROM ${tableName} ${whereClause}`,
       params
     );
 
@@ -334,7 +350,7 @@ export async function getTransactionSummary(
       c === 'status = 1' ? 'status = 0' : c
     );
     const [pendingResult] = await connection.query(
-      `SELECT COUNT(*) as count FROM ${db.table_name} WHERE ${pendingConditions.join(' AND ')}`,
+      `SELECT COUNT(*) as count FROM ${tableName} WHERE ${pendingConditions.join(' AND ')}`,
       params
     );
     const pendingCount = (pendingResult as { count: number }[])[0].count;
@@ -366,9 +382,10 @@ export async function getUniqueUsers(
   search?: string
 ): Promise<string[]> {
   const connection = await createUserDbConnection(db);
+  const tableName = db.table_name || FIXED_TABLE_NAME;
 
   try {
-    let sql = `SELECT DISTINCT username FROM ${db.table_name} WHERE hidden = 0`;
+    let sql = `SELECT DISTINCT username FROM ${tableName} WHERE hidden = 0`;
     const params: string[] = [];
 
     if (search) {

@@ -10,10 +10,9 @@ import {
   RefreshCw,
   X,
   Server,
-  Eye,
-  EyeOff,
   FileText,
-  Loader2
+  Loader2,
+  Lock
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Swal from 'sweetalert2';
@@ -40,7 +39,6 @@ export default function DatabasesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingDb, setEditingDb] = useState<DatabaseConfig | null>(null);
   const [testingId, setTestingId] = useState<number | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -50,8 +48,6 @@ export default function DatabasesPage() {
     port: 3306,
     db_user: '',
     db_password: '',
-    db_name: '',
-    table_name: 'transactions',
   });
 
   const authHeaders = {
@@ -84,32 +80,53 @@ export default function DatabasesPage() {
       setFormData({
         name: db.name,
         note: db.note || '',
-        host: db.host,
+        host: '', // ซ่อนข้อมูล ให้ใส่ใหม่ถ้าต้องการแก้ไข
         port: db.port,
-        db_user: db.db_user,
-        db_password: db.db_password,
-        db_name: db.db_name,
-        table_name: db.table_name,
+        db_user: '', // ซ่อนข้อมูล ให้ใส่ใหม่ถ้าต้องการแก้ไข
+        db_password: '', // ซ่อนข้อมูล ให้ใส่ใหม่ถ้าต้องการแก้ไข
       });
     } else {
       setEditingDb(null);
-      setFormData({ name: '', note: '', host: '', port: 3306, db_user: '', db_password: '', db_name: '', table_name: 'transactions' });
+      setFormData({ name: '', note: '', host: '', port: 3306, db_user: '', db_password: '' });
     }
-    setShowPassword(false);
     setShowModal(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.host || !formData.db_user || !formData.db_name) {
-      Swal.fire({ icon: 'warning', title: 'กรุณากรอกข้อมูล', text: 'กรุณากรอกข้อมูลที่จำเป็นให้ครบ', confirmButtonColor: '#10b981' });
-      return;
+    
+    // สำหรับเพิ่มใหม่ ต้องกรอกข้อมูลครบ
+    if (!editingDb) {
+      if (!formData.name || !formData.host || !formData.db_user || !formData.db_password) {
+        Swal.fire({ icon: 'warning', title: 'กรุณากรอกข้อมูล', text: 'กรุณากรอกข้อมูลที่จำเป็นให้ครบ', confirmButtonColor: '#10b981' });
+        return;
+      }
+    } else {
+      // สำหรับแก้ไข ต้องกรอกชื่อเว็บ
+      if (!formData.name) {
+        Swal.fire({ icon: 'warning', title: 'กรุณากรอกข้อมูล', text: 'กรุณากรอกชื่อเว็บ', confirmButtonColor: '#10b981' });
+        return;
+      }
     }
+
     setSaving(true);
     try {
       const url = editingDb ? `/api/databases/${editingDb.id}` : '/api/databases';
       const method = editingDb ? 'PUT' : 'POST';
-      const res = await fetch(url, { method, headers: authHeaders, body: JSON.stringify(formData) });
+      
+      // สร้าง payload
+      const payload: Record<string, string | number> = {
+        name: formData.name,
+        note: formData.note,
+        port: formData.port,
+      };
+      
+      // ถ้ามีการกรอกค่าใหม่ ให้ส่งไปด้วย
+      if (formData.host) payload.host = formData.host;
+      if (formData.db_user) payload.db_user = formData.db_user;
+      if (formData.db_password) payload.db_password = formData.db_password;
+      
+      const res = await fetch(url, { method, headers: authHeaders, body: JSON.stringify(payload) });
       const data = await res.json();
       if (data.success) {
         Swal.fire({ icon: 'success', title: editingDb ? 'อัพเดทสำเร็จ' : 'เพิ่มสำเร็จ', confirmButtonColor: '#10b981', timer: 1500, showConfirmButton: false });
@@ -205,7 +222,11 @@ export default function DatabasesPage() {
                       {db.is_active ? 'Active' : 'Inactive'}
                     </div>
                   </div>
-                  <div className="text-sm text-zinc-500">
+                  <div className="text-sm text-zinc-500 space-y-1">
+                    <p className="flex items-center gap-2">
+                      <Lock className="w-3 h-3" />
+                      <span>Database: joker555 • Table: transactions</span>
+                    </p>
                     <p>เชื่อมต่อ {db.last_connected ? new Date(db.last_connected).toLocaleString('th-TH') : 'ยังไม่เคยเชื่อมต่อ'}</p>
                   </div>
                 </div>
@@ -242,8 +263,11 @@ export default function DatabasesPage() {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-zinc-400 mb-2">Host <span className="text-red-400">*</span></label>
-                  <input type="text" value={formData.host} onChange={(e) => setFormData(prev => ({ ...prev, host: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="IP" />
+                  <label className="block text-sm font-medium text-zinc-400 mb-2">
+                    Host {!editingDb && <span className="text-red-400">*</span>}
+                    {editingDb && <span className="text-zinc-500 text-xs ml-1">(เว้นว่างถ้าไม่แก้ไข)</span>}
+                  </label>
+                  <input type="text" value={formData.host} onChange={(e) => setFormData(prev => ({ ...prev, host: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder={editingDb ? "เว้นว่างถ้าไม่แก้ไข" : "IP Address"} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-zinc-400 mb-2">Port</label>
@@ -251,24 +275,20 @@ export default function DatabasesPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-400 mb-2">DB User <span className="text-red-400">*</span></label>
-                <input type="text" value={formData.db_user} onChange={(e) => setFormData(prev => ({ ...prev, db_user: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="root" />
+                <label className="block text-sm font-medium text-zinc-400 mb-2">
+                  DB User {!editingDb && <span className="text-red-400">*</span>}
+                  {editingDb && <span className="text-zinc-500 text-xs ml-1">(เว้นว่างถ้าไม่แก้ไข)</span>}
+                </label>
+                <input type="text" value={formData.db_user} onChange={(e) => setFormData(prev => ({ ...prev, db_user: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder={editingDb ? "เว้นว่างถ้าไม่แก้ไข" : "root"} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-400 mb-2">Password</label>
-                <div className="relative">
-                  <input type={showPassword ? 'text' : 'password'} value={formData.db_password} onChange={(e) => setFormData(prev => ({ ...prev, db_password: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 pr-12 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder={editingDb ? 'ไม่เปลี่ยนให้เว้นว่าง' : 'รหัสผ่าน'} />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">{showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button>
-                </div>
+                <label className="block text-sm font-medium text-zinc-400 mb-2">
+                  Password {!editingDb && <span className="text-red-400">*</span>}
+                  {editingDb && <span className="text-zinc-500 text-xs ml-1">(เว้นว่างถ้าไม่แก้ไข)</span>}
+                </label>
+                <input type="password" value={formData.db_password} onChange={(e) => setFormData(prev => ({ ...prev, db_password: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder={editingDb ? 'เว้นว่างถ้าไม่แก้ไข' : 'รหัสผ่าน'} />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-400 mb-2">Database Name <span className="text-red-400">*</span></label>
-                <input type="text" value={formData.db_name} onChange={(e) => setFormData(prev => ({ ...prev, db_name: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="ชื่อ database" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-400 mb-2">Table Name</label>
-                <input type="text" value={formData.table_name} onChange={(e) => setFormData(prev => ({ ...prev, table_name: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="transactions" />
-              </div>
+
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl transition-colors">ยกเลิก</button>
                 <button type="submit" disabled={saving} className="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-600 text-white rounded-xl flex items-center justify-center gap-2 transition-colors">

@@ -3,7 +3,6 @@ export interface User {
   id: number;
   username: string;
   email: string;
-  full_name: string | null;
   role: 'admin' | 'user';
   status: 'active' | 'inactive' | 'banned';
   last_login: string | null;
@@ -14,7 +13,6 @@ export interface UserSession {
   id: number;
   username: string;
   email: string;
-  full_name: string | null;
   role: 'admin' | 'user';
 }
 
@@ -114,5 +112,4 @@ export interface RegisterData {
   username: string;
   email: string;
   password: string;
-  full_name?: string;
 }

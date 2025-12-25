@@ -32,9 +32,15 @@ export async function GET(
       );
     }
 
+    // Hide sensitive data
     return NextResponse.json({ 
       success: true,
-      database: { ...database, db_password: '********' } 
+      database: { 
+        ...database, 
+        host: '********',
+        db_user: '********',
+        db_password: '********' 
+      } 
     });
   } catch (error) {
     console.error('Get database error:', error);
@@ -69,10 +75,36 @@ export async function PUT(
       );
     }
 
-    // If password is masked, don't update it
-    const updates = { ...body };
-    if (updates.db_password === '********') {
-      delete updates.db_password;
+    // Build updates object - only include fields that have values
+    const updates: Record<string, string | number> = {};
+    
+    // Always update name and note
+    if (body.name) updates.name = body.name;
+    if (body.note !== undefined) updates.note = body.note;
+    if (body.port) updates.port = body.port;
+    
+    // Only update sensitive fields if new values are provided (not empty)
+    if (body.host && body.host !== '********') updates.host = body.host;
+    if (body.db_user && body.db_user !== '********') updates.db_user = body.db_user;
+    if (body.db_password && body.db_password !== '********') updates.db_password = body.db_password;
+
+    // If connection details are being updated, test connection first
+    if (updates.host || updates.db_user || updates.db_password) {
+      const testDb = {
+        ...existing,
+        host: updates.host as string || existing.host,
+        db_user: updates.db_user as string || existing.db_user,
+        db_password: updates.db_password as string || existing.db_password,
+        port: updates.port as number || existing.port,
+      };
+      
+      const testResult = await testConnection(testDb);
+      if (!testResult.success) {
+        return NextResponse.json(
+          { success: false, error: `เชื่อมต่อไม่ได้: ${testResult.error}` },
+          { status: 400 }
+        );
+      }
     }
 
     const result = await updateUserDatabase(parseInt(id), user.id, updates);

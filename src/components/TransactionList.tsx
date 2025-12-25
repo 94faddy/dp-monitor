@@ -3,9 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
   RefreshCw, 
-  TrendingUp, 
   CheckCircle, 
-  Clock, 
   DollarSign,
   Calendar,
   Filter,

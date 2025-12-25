@@ -23,7 +23,6 @@ export function generateToken(user: UserSession): string {
       id: user.id,
       username: user.username,
       email: user.email,
-      full_name: user.full_name,
       role: user.role,
     },
     JWT_SECRET,
@@ -44,7 +43,7 @@ export function verifyToken(token: string): UserSession | null {
 // Get user by username
 export async function getUserByUsername(username: string): Promise<User | null> {
   const users = await query<User[]>(
-    'SELECT id, username, email, password, full_name, role, status, last_login, created_at FROM users WHERE username = ?',
+    'SELECT id, username, email, password, role, status, last_login, created_at FROM users WHERE username = ?',
     [username]
   );
   return users[0] || null;
@@ -53,7 +52,7 @@ export async function getUserByUsername(username: string): Promise<User | null> 
 // Get user by email
 export async function getUserByEmail(email: string): Promise<User | null> {
   const users = await query<User[]>(
-    'SELECT id, username, email, password, full_name, role, status, last_login, created_at FROM users WHERE email = ?',
+    'SELECT id, username, email, password, role, status, last_login, created_at FROM users WHERE email = ?',
     [email]
   );
   return users[0] || null;
@@ -62,7 +61,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 // Get user by ID
 export async function getUserById(id: number): Promise<User | null> {
   const users = await query<User[]>(
-    'SELECT id, username, email, full_name, role, status, last_login, created_at FROM users WHERE id = ?',
+    'SELECT id, username, email, role, status, last_login, created_at FROM users WHERE id = ?',
     [id]
   );
   return users[0] || null;
@@ -73,7 +72,6 @@ export async function createUser(data: {
   username: string;
   email: string;
   password: string;
-  full_name?: string;
 }): Promise<{ success: boolean; userId?: number; error?: string }> {
   try {
     // Check if username exists
@@ -91,10 +89,10 @@ export async function createUser(data: {
     // Hash password
     const hashedPassword = await hashPassword(data.password);
 
-    // Insert user
+    // Insert user (ไม่มี full_name แล้ว)
     const result = await query<{ insertId: number }>(
-      'INSERT INTO users (username, email, password, full_name, role, status) VALUES (?, ?, ?, ?, ?, ?)',
-      [data.username, data.email, hashedPassword, data.full_name || null, 'user', 'active']
+      'INSERT INTO users (username, email, password, role, status) VALUES (?, ?, ?, ?, ?)',
+      [data.username, data.email, hashedPassword, 'user', 'active']
     );
 
     return { success: true, userId: (result as unknown as { insertId: number }).insertId };
@@ -112,7 +110,7 @@ export async function loginUser(
   try {
     // Get user with password
     const users = await query<(User & { password: string })[]>(
-      'SELECT id, username, email, password, full_name, role, status FROM users WHERE username = ? OR email = ?',
+      'SELECT id, username, email, password, role, status FROM users WHERE username = ? OR email = ?',
       [username, username]
     );
 
@@ -140,7 +138,6 @@ export async function loginUser(
       id: user.id,
       username: user.username,
       email: user.email,
-      full_name: user.full_name,
       role: user.role,
     };
 

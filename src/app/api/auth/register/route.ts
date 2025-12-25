@@ -4,7 +4,7 @@ import { createUser, loginUser } from '@/lib/auth';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { username, email, password, full_name } = body;
+    const { username, email, password } = body;
 
     // Validation
     if (!username || !email || !password) {
@@ -42,7 +42,6 @@ export async function POST(request: Request) {
       username,
       email,
       password,
-      full_name,
     });
 
     if (!result.success) {

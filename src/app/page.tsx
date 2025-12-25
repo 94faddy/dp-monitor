@@ -5,14 +5,12 @@ import {
   RefreshCw, 
   TrendingUp, 
   TrendingDown,
-  CheckCircle, 
   DollarSign,
   ArrowDownCircle,
   ArrowUpCircle,
   AlertCircle,
   Banknote,
   Smartphone,
-  Bot,
   Database,
   FileText
 } from 'lucide-react';
@@ -152,7 +150,7 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">Dashboard</h1>
             <p className="text-sm text-zinc-400 mt-1">
-              สวัสดี, {user?.full_name || user?.username} • ภาพรวมยอดฝาก-ถอน
+              สวัสดี, {user?.username} • ภาพรวมยอดฝาก-ถอน
             </p>
           </div>
           
@@ -289,9 +287,7 @@ export default function DashboardPage() {
                       <div className="flex-1">
                         <h3 className="font-semibold text-white">{item.database.name}</h3>
                         <div className="flex items-center gap-2 text-xs text-zinc-500">
-                          <span>{item.database.host}</span>
-                          <span>•</span>
-                          <span>{item.database.db_name}</span>
+                          <span>joker555</span>
                         </div>
                       </div>
                     </div>

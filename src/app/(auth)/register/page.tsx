@@ -14,7 +14,6 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    full_name: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -83,7 +82,6 @@ export default function RegisterPage() {
       username: formData.username,
       email: formData.email,
       password: formData.password,
-      full_name: formData.full_name || undefined,
     });
 
     if (result.success) {
@@ -145,20 +143,6 @@ export default function RegisterPage() {
           <h2 className="text-xl font-semibold text-white mb-6 text-center">สมัครสมาชิก</h2>
           
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">
-                ชื่อ-นามสกุล
-              </label>
-              <input
-                type="text"
-                name="full_name"
-                value={formData.full_name}
-                onChange={handleChange}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                placeholder="กรอกชื่อ-นามสกุล (ไม่บังคับ)"
-              />
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-zinc-400 mb-2">
                 Username <span className="text-red-400">*</span>
