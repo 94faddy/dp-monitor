@@ -1,7 +1,6 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from './Sidebar';
 import ProtectedRoute from './ProtectedRoute';
 
@@ -10,16 +9,15 @@ const publicRoutes = ['/login', '/register'];
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isAuthenticated } = useAuth();
   
   const isPublicRoute = publicRoutes.includes(pathname);
 
-  // Public routes (login, register) - no sidebar
+  // Public routes (login, register) - no sidebar, no auth check
   if (isPublicRoute) {
     return <>{children}</>;
   }
 
-  // Protected routes - with sidebar
+  // Protected routes - with sidebar and auth check
   return (
     <ProtectedRoute>
       <Sidebar />

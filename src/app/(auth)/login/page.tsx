@@ -1,14 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, LogIn, Database, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Swal from 'sweetalert2';
 
 export default function LoginPage() {
-  const router = useRouter();
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   
   const [username, setUsername] = useState('');
@@ -19,9 +17,9 @@ export default function LoginPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.push('/');
+      window.location.href = '/';
     }
-  }, [isAuthenticated, authLoading, router]);
+  }, [isAuthenticated, authLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,8 +38,6 @@ export default function LoginPage() {
 
     const result = await login(username, password);
 
-    setIsLoading(false);
-
     if (result.success) {
       Swal.fire({
         icon: 'success',
@@ -51,9 +47,11 @@ export default function LoginPage() {
         timer: 1500,
         showConfirmButton: false,
       }).then(() => {
-        router.push('/');
+        // Use window.location for full page reload
+        window.location.href = '/';
       });
     } else {
+      setIsLoading(false);
       Swal.fire({
         icon: 'error',
         title: 'เข้าสู่ระบบไม่สำเร็จ',
@@ -64,6 +62,15 @@ export default function LoginPage() {
   };
 
   if (authLoading) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+      </div>
+    );
+  }
+
+  // Already authenticated, show loading while redirecting
+  if (isAuthenticated) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />

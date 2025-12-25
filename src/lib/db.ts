@@ -141,6 +141,19 @@ async function createUserDbConnection(db: UserDatabase) {
   });
 }
 
+// Helper: สร้าง condition สำหรับแยกประเภทจาก tmw
+// tmw = 1 → TrueMoney, อื่นๆ (รวม 0) → ธนาคาร
+function getPaymentTypeCondition(paymentType: string): string {
+  if (paymentType === 'bank') {
+    // tmw != 1 ทั้งหมดเป็นธนาคาร (รวม 0 ด้วย)
+    return "(tmw != 1)";
+  } else if (paymentType === 'truemoney') {
+    // tmw = 1 เป็น TrueMoney
+    return "(tmw = 1)";
+  }
+  return '1=1';
+}
+
 // Query transactions
 export async function queryTransactions(
   db: UserDatabase,
@@ -159,7 +172,7 @@ export async function queryTransactions(
   const connection = await createUserDbConnection(db);
 
   try {
-    const conditions: string[] = [];
+    const conditions: string[] = ['hidden = 0']; // ไม่แสดงรายการที่ถูกยกเลิก (hidden = 1)
     const params: (string | number)[] = [];
 
     // Type filter (deposit/withdraw)
@@ -168,26 +181,28 @@ export async function queryTransactions(
       params.push(options.typeTran);
     }
 
-    // Date filters
+    // Date filters (รองรับเวลาด้วย)
     if (options.startDate) {
       conditions.push('timestamp >= ?');
-      params.push(options.startDate + ' 00:00:00');
+      // ถ้ามีเวลามาด้วยใช้เลย ถ้าไม่มีใช้ 00:00:00
+      const startDateTime = options.startDate.includes(' ') 
+        ? options.startDate 
+        : options.startDate + ' 00:00:00';
+      params.push(startDateTime);
     }
 
     if (options.endDate) {
       conditions.push('timestamp <= ?');
-      params.push(options.endDate + ' 23:59:59');
+      // ถ้ามีเวลามาด้วยใช้เลย ถ้าไม่มีใช้ 23:59:59
+      const endDateTime = options.endDate.includes(' ') 
+        ? options.endDate 
+        : options.endDate + ' 23:59:59';
+      params.push(endDateTime);
     }
 
-    // Payment type filter
+    // Payment type filter (ใช้ uniq_tran แทน tmw)
     if (options.paymentType && options.paymentType !== 'all') {
-      if (options.paymentType === 'bank') {
-        conditions.push('tmw = -6');
-      } else if (options.paymentType === 'truemoney') {
-        conditions.push('tmw = 1');
-      } else if (options.paymentType === 'manual') {
-        conditions.push('tmw = 0');
-      }
+      conditions.push(getPaymentTypeCondition(options.paymentType));
     }
 
     // Auto type filter
@@ -254,7 +269,8 @@ export async function getTransactionSummary(
   const connection = await createUserDbConnection(db);
 
   try {
-    const conditions: string[] = ['status = 1']; // Only successful transactions
+    // Only successful transactions (status = 1) and not hidden (hidden = 0)
+    const conditions: string[] = ['status = 1', 'hidden = 0'];
     const params: string[] = [];
 
     if (options.typeTran) {
@@ -264,12 +280,18 @@ export async function getTransactionSummary(
 
     if (options.startDate) {
       conditions.push('timestamp >= ?');
-      params.push(options.startDate + ' 00:00:00');
+      const startDateTime = options.startDate.includes(' ') 
+        ? options.startDate 
+        : options.startDate + ' 00:00:00';
+      params.push(startDateTime);
     }
 
     if (options.endDate) {
       conditions.push('timestamp <= ?');
-      params.push(options.endDate + ' 23:59:59');
+      const endDateTime = options.endDate.includes(' ') 
+        ? options.endDate 
+        : options.endDate + ' 23:59:59';
+      params.push(endDateTime);
     }
 
     if (options.username) {
@@ -279,7 +301,7 @@ export async function getTransactionSummary(
 
     const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
-    // Get main summary
+    // Get main summary (ใช้ uniq_tran ในการนับประเภท)
     const [summaryResult] = await connection.query(
       `SELECT 
         COUNT(*) as totalCount,
@@ -287,9 +309,9 @@ export async function getTransactionSummary(
         COALESCE(AVG(amount), 0) as averageAmount,
         SUM(CASE WHEN isAuto = 1 THEN 1 ELSE 0 END) as autoCount,
         SUM(CASE WHEN isAuto = 0 THEN 1 ELSE 0 END) as manualCount,
-        SUM(CASE WHEN tmw = -6 THEN 1 ELSE 0 END) as bankCount,
+        SUM(CASE WHEN tmw != 1 THEN 1 ELSE 0 END) as bankCount,
         SUM(CASE WHEN tmw = 1 THEN 1 ELSE 0 END) as truemoneyCount,
-        SUM(CASE WHEN tmw = -6 THEN amount ELSE 0 END) as bankAmount,
+        SUM(CASE WHEN tmw != 1 THEN amount ELSE 0 END) as bankAmount,
         SUM(CASE WHEN tmw = 1 THEN amount ELSE 0 END) as truemoneyAmount
        FROM ${db.table_name} ${whereClause}`,
       params
@@ -307,7 +329,7 @@ export async function getTransactionSummary(
       truemoneyAmount: number;
     }[])[0];
 
-    // Get pending count
+    // Get pending count (status = 0, hidden = 0)
     const pendingConditions = conditions.map(c => 
       c === 'status = 1' ? 'status = 0' : c
     );
@@ -338,7 +360,7 @@ export async function getTransactionSummary(
   }
 }
 
-// Get unique users from transactions
+// Get unique users from transactions (exclude hidden)
 export async function getUniqueUsers(
   db: UserDatabase,
   search?: string
@@ -346,11 +368,11 @@ export async function getUniqueUsers(
   const connection = await createUserDbConnection(db);
 
   try {
-    let sql = `SELECT DISTINCT username FROM ${db.table_name}`;
+    let sql = `SELECT DISTINCT username FROM ${db.table_name} WHERE hidden = 0`;
     const params: string[] = [];
 
     if (search) {
-      sql += ' WHERE username LIKE ?';
+      sql += ' AND username LIKE ?';
       params.push(`%${search}%`);
     }
 

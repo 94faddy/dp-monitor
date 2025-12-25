@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import Cookies from 'js-cookie';
 
 interface User {
@@ -31,19 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load token from cookies on mount
-  useEffect(() => {
-    const savedToken = Cookies.get(TOKEN_KEY);
-    if (savedToken) {
-      setToken(savedToken);
-      fetchUser(savedToken);
-    } else {
-      setIsLoading(false);
-    }
-  }, []);
-
   // Fetch user data
-  const fetchUser = async (authToken: string) => {
+  const fetchUser = useCallback(async (authToken: string) => {
     try {
       const res = await fetch('/api/auth/me', {
         headers: {
@@ -54,21 +43,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (data.success && data.user) {
         setUser(data.user);
+        setToken(authToken);
+        return true;
       } else {
-        // Token invalid, clear it
         Cookies.remove(TOKEN_KEY);
         setToken(null);
         setUser(null);
+        return false;
       }
     } catch (error) {
       console.error('Fetch user error:', error);
       Cookies.remove(TOKEN_KEY);
       setToken(null);
       setUser(null);
-    } finally {
-      setIsLoading(false);
+      return false;
     }
-  };
+  }, []);
+
+  // Load token from cookies on mount
+  useEffect(() => {
+    const initAuth = async () => {
+      const savedToken = Cookies.get(TOKEN_KEY);
+      if (savedToken) {
+        await fetchUser(savedToken);
+      }
+      setIsLoading(false);
+    };
+    
+    initAuth();
+  }, [fetchUser]);
 
   // Login
   const login = async (username: string, password: string) => {
@@ -81,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
 
       if (data.success && data.token) {
-        Cookies.set(TOKEN_KEY, data.token, { expires: 7 }); // 7 days
+        Cookies.set(TOKEN_KEY, data.token, { expires: 7 });
         setToken(data.token);
         setUser(data.user);
         return { success: true };
@@ -127,8 +130,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Refresh user
   const refreshUser = async () => {
-    if (token) {
-      await fetchUser(token);
+    const savedToken = Cookies.get(TOKEN_KEY);
+    if (savedToken) {
+      await fetchUser(savedToken);
     }
   };
 
@@ -138,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         token,
         isLoading,
-        isAuthenticated: !!user,
+        isAuthenticated: !!user && !!token,
         login,
         register,
         logout,
@@ -158,7 +162,6 @@ export function useAuth() {
   return context;
 }
 
-// Hook to get auth headers
 export function useAuthHeaders() {
   const { token } = useAuth();
   return {

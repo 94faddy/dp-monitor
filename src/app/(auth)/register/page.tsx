@@ -1,14 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, UserPlus, Database, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Swal from 'sweetalert2';
 
 export default function RegisterPage() {
-  const router = useRouter();
   const { register, isAuthenticated, isLoading: authLoading } = useAuth();
   
   const [formData, setFormData] = useState({
@@ -24,9 +22,9 @@ export default function RegisterPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.push('/');
+      window.location.href = '/';
     }
-  }, [isAuthenticated, authLoading, router]);
+  }, [isAuthenticated, authLoading]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -88,8 +86,6 @@ export default function RegisterPage() {
       full_name: formData.full_name || undefined,
     });
 
-    setIsLoading(false);
-
     if (result.success) {
       Swal.fire({
         icon: 'success',
@@ -99,9 +95,11 @@ export default function RegisterPage() {
         timer: 1500,
         showConfirmButton: false,
       }).then(() => {
-        router.push('/');
+        // Use window.location for full page reload
+        window.location.href = '/';
       });
     } else {
+      setIsLoading(false);
       Swal.fire({
         icon: 'error',
         title: 'สมัครสมาชิกไม่สำเร็จ',
@@ -112,6 +110,15 @@ export default function RegisterPage() {
   };
 
   if (authLoading) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+      </div>
+    );
+  }
+
+  // Already authenticated, show loading while redirecting
+  if (isAuthenticated) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />

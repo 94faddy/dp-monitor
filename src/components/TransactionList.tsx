@@ -40,9 +40,11 @@ interface Transaction {
   bonus: number | null;
   amount_after: number | null;
   type_tran: 'deposit' | 'withdraw';
+  uniq_tran: string | null;
   tmw: number;
   isAuto: number;
   status: number;
+  hidden: number;
 }
 
 interface Summary {
@@ -77,7 +79,9 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
   
   // Filters
   const [startDate, setStartDate] = useState<string>('');
+  const [startTime, setStartTime] = useState<string>('00:00');
   const [endDate, setEndDate] = useState<string>('');
+  const [endTime, setEndTime] = useState<string>('23:59');
   const [paymentType, setPaymentType] = useState<string>('all');
   const [autoType, setAutoType] = useState<string>('all');
   const [username, setUsername] = useState<string>('');
@@ -120,7 +124,7 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
     if (selectedDb && token) {
       fetchTransactions();
     }
-  }, [selectedDb, startDate, endDate, paymentType, autoType, username, statusFilter, currentPage, token]);
+  }, [selectedDb, startDate, startTime, endDate, endTime, paymentType, autoType, username, statusFilter, currentPage, token]);
 
   // Fetch user suggestions
   const fetchUserSuggestions = useCallback(async (search: string) => {
@@ -164,8 +168,15 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
         offset: ((currentPage - 1) * itemsPerPage).toString(),
       });
       
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
+      // ส่งวันที่พร้อมเวลา
+      if (startDate) {
+        const startDateTime = `${startDate} ${startTime}:00`;
+        params.append('startDate', startDateTime);
+      }
+      if (endDate) {
+        const endDateTime = `${endDate} ${endTime}:59`;
+        params.append('endDate', endDateTime);
+      }
       if (paymentType !== 'all') params.append('paymentType', paymentType);
       if (autoType !== 'all') params.append('autoType', autoType);
       if (username) params.append('username', username);
@@ -224,6 +235,7 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
   };
 
   const getPaymentTypeBadge = (tmw: number) => {
+    // tmw = 1 → TrueMoney
     if (tmw === 1) {
       return (
         <span className="px-2 py-1 rounded-full text-xs font-medium border bg-blue-500/20 text-blue-400 border-blue-500/30 flex items-center gap-1">
@@ -231,18 +243,13 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
           TrueMoney
         </span>
       );
-    } else if (tmw === -6) {
-      return (
-        <span className="px-2 py-1 rounded-full text-xs font-medium border bg-purple-500/20 text-purple-400 border-purple-500/30 flex items-center gap-1">
-          <Banknote className="w-3 h-3" />
-          ธนาคาร
-        </span>
-      );
     }
+    
+    // tmw = 0 หรืออื่นๆ → ธนาคาร
     return (
-      <span className="px-2 py-1 rounded-full text-xs font-medium border bg-zinc-500/20 text-zinc-400 border-zinc-500/30 flex items-center gap-1">
-        <UserCheck className="w-3 h-3" />
-        Manual
+      <span className="px-2 py-1 rounded-full text-xs font-medium border bg-purple-500/20 text-purple-400 border-purple-500/30 flex items-center gap-1">
+        <Banknote className="w-3 h-3" />
+        ธนาคาร
       </span>
     );
   };
@@ -272,16 +279,22 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
       case 'today':
         setStartDate(format(today, 'yyyy-MM-dd'));
         setEndDate(format(today, 'yyyy-MM-dd'));
+        setStartTime('00:00');
+        setEndTime('23:59');
         break;
       case 'week':
         start.setDate(today.getDate() - 7);
         setStartDate(format(start, 'yyyy-MM-dd'));
         setEndDate(format(today, 'yyyy-MM-dd'));
+        setStartTime('00:00');
+        setEndTime('23:59');
         break;
       case 'month':
         start.setMonth(today.getMonth() - 1);
         setStartDate(format(start, 'yyyy-MM-dd'));
         setEndDate(format(today, 'yyyy-MM-dd'));
+        setStartTime('00:00');
+        setEndTime('23:59');
         break;
     }
     setCurrentPage(1);
@@ -289,7 +302,9 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
 
   const clearFilters = () => {
     setStartDate('');
+    setStartTime('00:00');
     setEndDate('');
+    setEndTime('23:59');
     setPaymentType('all');
     setAutoType('all');
     setUsername('');
@@ -505,9 +520,8 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
                 <option value="all">ทั้งหมด</option>
-                <option value="bank">ธนาคาร (PromptPay)</option>
-                <option value="truemoney">TrueMoney Wallet</option>
-                <option value="manual">Manual</option>
+                <option value="bank">ธนาคาร</option>
+                <option value="truemoney">TrueMoney</option>
               </select>
             </div>
 
@@ -571,25 +585,47 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
 
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-zinc-400" />
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
+              <div className="flex items-center gap-1">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => {
+                    setStartTime(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-24"
+                />
+              </div>
               <span className="text-zinc-500">ถึง</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
+              <div className="flex items-center gap-1">
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => {
+                    setEndTime(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-24"
+                />
+              </div>
             </div>
 
             <button

@@ -205,11 +205,8 @@ export default function DatabasesPage() {
                       {db.is_active ? 'Active' : 'Inactive'}
                     </div>
                   </div>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center justify-between"><span className="text-zinc-500">Host</span><span className="text-zinc-300">{db.host}:{db.port}</span></div>
-                    <div className="flex items-center justify-between"><span className="text-zinc-500">Database</span><span className="text-zinc-300">{db.db_name}</span></div>
-                    <div className="flex items-center justify-between"><span className="text-zinc-500">Table</span><span className="text-zinc-300">{db.table_name}</span></div>
-                    <div className="flex items-center justify-between"><span className="text-zinc-500">User</span><span className="text-zinc-300">{db.db_user}</span></div>
+                  <div className="text-sm text-zinc-500">
+                    <p>เชื่อมต่อ {db.last_connected ? new Date(db.last_connected).toLocaleString('th-TH') : 'ยังไม่เคยเชื่อมต่อ'}</p>
                   </div>
                 </div>
                 <div className="px-6 py-4 bg-zinc-800/50 border-t border-zinc-800 flex items-center justify-between">
@@ -237,7 +234,7 @@ export default function DatabasesPage() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-400 mb-2">ชื่อเว็บ <span className="text-red-400">*</span></label>
-                <input type="text" value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="เช่น Joker555" />
+                <input type="text" value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="เช่น NEW WEB" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-400 mb-2">หมายเหตุ / Note</label>

@@ -64,11 +64,13 @@ export interface Transaction {
   amount_after: number | null;
   promotion: number | null;
   type_tran: 'deposit' | 'withdraw';
+  uniq_tran: string | null; // ประเภทการทำรายการ: PromptPay-xxx, TrueWallet-xxx, tmwnpah..., admin deposit
   admin: string | null;
   note: string | null;
-  tmw: number; // 1 = TrueMoney, -6 = PromptPay/Bank, 0 = Manual
+  tmw: number;
   isAuto: number; // 1 = Auto, 0 = Manual
-  status: number; // 1 = Success, 0 = Pending
+  status: number; // 1 = Success, 0 = Pending, -1 = Cancelled
+  hidden: number; // 0 = ปกติ, 1 = ยกเลิกแล้ว (ไม่แสดง)
 }
 
 export interface TransactionSummary {
@@ -114,4 +116,3 @@ export interface RegisterData {
   password: string;
   full_name?: string;
 }
-
