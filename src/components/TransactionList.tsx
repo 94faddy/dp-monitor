@@ -236,8 +236,12 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
     // tmw = 1 → TrueMoney
     if (tmw === 1) {
       return (
-        <span className="px-2 py-1 rounded-full text-xs font-medium border bg-blue-500/20 text-blue-400 border-blue-500/30 flex items-center gap-1">
-          <Smartphone className="w-3 h-3" />
+        <span className="px-2 py-1 rounded-full text-xs font-medium border bg-blue-500/20 text-blue-400 border-blue-500/30 flex items-center gap-2">
+          <img 
+            src="https://pix9.my/uploads/1765295858226_n8sksRAY.webp" 
+            alt="TrueMoney" 
+            className="w-5 h-5 rounded-full object-cover"
+          />
           TrueMoney
         </span>
       );
@@ -245,8 +249,12 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
     
     // tmw = 0 หรืออื่นๆ → ธนาคาร
     return (
-      <span className="px-2 py-1 rounded-full text-xs font-medium border bg-purple-500/20 text-purple-400 border-purple-500/30 flex items-center gap-1">
-        <Banknote className="w-3 h-3" />
+      <span className="px-2 py-1 rounded-full text-xs font-medium border bg-purple-500/20 text-purple-400 border-purple-500/30 flex items-center gap-2">
+        <img 
+          src="https://pix9.my/uploads/1765297209610_DZsuFbXn.webp" 
+          alt="ธนาคาร" 
+          className="w-5 h-5 rounded-full object-cover"
+        />
         ธนาคาร
       </span>
     );

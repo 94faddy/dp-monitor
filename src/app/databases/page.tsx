@@ -12,7 +12,8 @@ import {
   Server,
   FileText,
   Loader2,
-  Lock
+  Lock,
+  Plug
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Swal from 'sweetalert2';
@@ -40,6 +41,7 @@ export default function DatabasesPage() {
   const [editingDb, setEditingDb] = useState<DatabaseConfig | null>(null);
   const [testingId, setTestingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -90,6 +92,61 @@ export default function DatabasesPage() {
       setFormData({ name: '', note: '', host: '', port: 3306, db_user: '', db_password: '' });
     }
     setShowModal(true);
+  };
+
+  // ทดสอบการเชื่อมต่อจากฟอร์ม
+  const testFormConnection = async () => {
+    if (!formData.host || !formData.db_user || !formData.db_password) {
+      Swal.fire({ 
+        icon: 'warning', 
+        title: 'กรุณากรอกข้อมูล', 
+        text: 'กรุณากรอก Host, DB User และ Password ก่อนทดสอบ', 
+        confirmButtonColor: '#10b981' 
+      });
+      return;
+    }
+
+    setTestingConnection(true);
+    try {
+      const res = await fetch('/api/databases/test', {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({
+          host: formData.host,
+          port: formData.port,
+          db_user: formData.db_user,
+          db_password: formData.db_password,
+        }),
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        Swal.fire({ 
+          icon: 'success', 
+          title: 'เชื่อมต่อสำเร็จ', 
+          text: 'สามารถเชื่อมต่อ Database ได้',
+          confirmButtonColor: '#10b981', 
+          timer: 2000, 
+          showConfirmButton: false 
+        });
+      } else {
+        Swal.fire({ 
+          icon: 'error', 
+          title: 'เชื่อมต่อไม่ได้', 
+          text: data.error, 
+          confirmButtonColor: '#10b981' 
+        });
+      }
+    } catch {
+      Swal.fire({ 
+        icon: 'error', 
+        title: 'เกิดข้อผิดพลาด', 
+        text: 'ไม่สามารถทดสอบการเชื่อมต่อได้',
+        confirmButtonColor: '#10b981' 
+      });
+    } finally {
+      setTestingConnection(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -177,6 +234,9 @@ export default function DatabasesPage() {
     }
   };
 
+  // ตรวจสอบว่ากรอกข้อมูลการเชื่อมต่อครบหรือยัง
+  const canTestConnection = formData.host && formData.db_user && formData.db_password;
+
   return (
     <div className="min-h-screen bg-zinc-950">
       <header className="sticky top-0 z-10 bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-800">
@@ -223,10 +283,6 @@ export default function DatabasesPage() {
                     </div>
                   </div>
                   <div className="text-sm text-zinc-500 space-y-1">
-                    <p className="flex items-center gap-2">
-                      <Lock className="w-3 h-3" />
-                      <span>Database: joker555 • Table: transactions</span>
-                    </p>
                     <p>เชื่อมต่อ {db.last_connected ? new Date(db.last_connected).toLocaleString('th-TH') : 'ยังไม่เคยเชื่อมต่อ'}</p>
                   </div>
                 </div>
@@ -287,6 +343,31 @@ export default function DatabasesPage() {
                   {editingDb && <span className="text-zinc-500 text-xs ml-1">(เว้นว่างถ้าไม่แก้ไข)</span>}
                 </label>
                 <input type="password" value={formData.db_password} onChange={(e) => setFormData(prev => ({ ...prev, db_password: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder={editingDb ? 'เว้นว่างถ้าไม่แก้ไข' : 'รหัสผ่าน'} />
+              </div>
+
+              {/* ปุ่มทดสอบการเชื่อมต่อ */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={testFormConnection}
+                  disabled={!canTestConnection || testingConnection}
+                  className="w-full px-4 py-3 bg-cyan-600 hover:bg-cyan-700 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white rounded-xl flex items-center justify-center gap-2 transition-colors"
+                >
+                  {testingConnection ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      กำลังทดสอบ...
+                    </>
+                  ) : (
+                    <>
+                      <Plug className="w-5 h-5" />
+                      ทดสอบการเชื่อมต่อ
+                    </>
+                  )}
+                </button>
+                {!canTestConnection && !editingDb && (
+                  <p className="text-xs text-zinc-500 text-center mt-2">กรอก Host, DB User และ Password เพื่อทดสอบ</p>
+                )}
               </div>
 
               <div className="flex gap-3 pt-4">
