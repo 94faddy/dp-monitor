@@ -150,6 +150,7 @@ export default function LoginPage() {
             </button>
           </form>
 
+          {/*
           <div className="mt-6 text-center">
             <p className="text-zinc-500">
               ยังไม่มีบัญชี?{' '}
@@ -158,6 +159,7 @@ export default function LoginPage() {
               </Link>
             </p>
           </div>
+          */}
         </div>
 
         {/* Footer */}

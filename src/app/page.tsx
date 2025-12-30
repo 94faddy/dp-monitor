@@ -287,7 +287,6 @@ export default function DashboardPage() {
                       <div className="flex-1">
                         <h3 className="font-semibold text-white">{item.database.name}</h3>
                         <div className="flex items-center gap-2 text-xs text-zinc-500">
-                          <span>joker555</span>
                         </div>
                       </div>
                     </div>

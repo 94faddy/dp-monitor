@@ -19,7 +19,6 @@ import {
   X,
   FileText
 } from 'lucide-react';
-import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Database {
@@ -209,9 +208,23 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
     }).format(amount);
   };
 
+  // แสดงวันที่-เวลาตรงๆ จาก Database (ไม่ต้องแปลง timezone)
   const formatDate = (dateStr: string) => {
     try {
-      return format(new Date(dateStr), 'dd/MM/yyyy HH:mm:ss');
+      // ถ้าเป็นรูปแบบ YYYY-MM-DD HH:mm:ss อยู่แล้ว ให้ return เลย
+      if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateStr)) {
+        return dateStr;
+      }
+      
+      // ถ้าเป็น ISO format (2025-12-29T15:23:39.000Z) ให้แปลงเป็น YYYY-MM-DD HH:mm:ss
+      const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+      if (match) {
+        const [, year, month, day, hour, minute, second] = match;
+        return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+      }
+      
+      // กรณีอื่นๆ ให้ return ค่าเดิม
+      return dateStr;
     } catch {
       return dateStr;
     }
@@ -233,7 +246,6 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
   };
 
   const getPaymentTypeBadge = (tmw: number) => {
-    // tmw = 1 → TrueMoney
     if (tmw === 1) {
       return (
         <span className="px-2 py-1 rounded-full text-xs font-medium border bg-blue-500/20 text-blue-400 border-blue-500/30 flex items-center gap-2">
@@ -247,7 +259,6 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
       );
     }
     
-    // tmw = 0 หรืออื่นๆ → ธนาคาร
     return (
       <span className="px-2 py-1 rounded-full text-xs font-medium border bg-purple-500/20 text-purple-400 border-purple-500/30 flex items-center gap-2">
         <img 
@@ -281,24 +292,33 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
     const today = new Date();
     const start = new Date();
     
+    // ใช้ Thailand timezone
+    const formatDateToYYYYMMDD = (date: Date) => {
+      const thaiDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+      const year = thaiDate.getFullYear();
+      const month = String(thaiDate.getMonth() + 1).padStart(2, '0');
+      const day = String(thaiDate.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
     switch (dateType) {
       case 'today':
-        setStartDate(format(today, 'yyyy-MM-dd'));
-        setEndDate(format(today, 'yyyy-MM-dd'));
+        setStartDate(formatDateToYYYYMMDD(today));
+        setEndDate(formatDateToYYYYMMDD(today));
         setStartTime('00:00');
         setEndTime('23:59');
         break;
       case 'week':
         start.setDate(today.getDate() - 7);
-        setStartDate(format(start, 'yyyy-MM-dd'));
-        setEndDate(format(today, 'yyyy-MM-dd'));
+        setStartDate(formatDateToYYYYMMDD(start));
+        setEndDate(formatDateToYYYYMMDD(today));
         setStartTime('00:00');
         setEndTime('23:59');
         break;
       case 'month':
         start.setMonth(today.getMonth() - 1);
-        setStartDate(format(start, 'yyyy-MM-dd'));
-        setEndDate(format(today, 'yyyy-MM-dd'));
+        setStartDate(formatDateToYYYYMMDD(start));
+        setEndDate(formatDateToYYYYMMDD(today));
         setStartTime('00:00');
         setEndTime('23:59');
         break;
@@ -602,13 +622,25 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
                   className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
                 <input
-                  type="time"
+                  type="text"
                   value={startTime}
                   onChange={(e) => {
-                    setStartTime(e.target.value);
-                    setCurrentPage(1);
+                    let value = e.target.value;
+                    // อนุญาตเฉพาะตัวเลขและ :
+                    value = value.replace(/[^0-9:]/g, '');
+                    // ถ้าพิมพ์ 2 ตัวแล้วยังไม่มี : ให้เพิ่ม : อัตโนมัติ
+                    if (value.length === 2 && !value.includes(':') && startTime.length < value.length) {
+                      value = value + ':';
+                    }
+                    // จำกัดความยาว
+                    if (value.length <= 5) {
+                      setStartTime(value);
+                    }
                   }}
-                  className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-24"
+                  onBlur={() => setCurrentPage(1)}
+                  placeholder="00:00"
+                  maxLength={5}
+                  className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-24 text-center"
                 />
               </div>
               <span className="text-zinc-500">ถึง</span>
@@ -623,13 +655,25 @@ export default function TransactionList({ type, title, subtitle }: TransactionLi
                   className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
                 <input
-                  type="time"
+                  type="text"
                   value={endTime}
                   onChange={(e) => {
-                    setEndTime(e.target.value);
-                    setCurrentPage(1);
+                    let value = e.target.value;
+                    // อนุญาตเฉพาะตัวเลขและ :
+                    value = value.replace(/[^0-9:]/g, '');
+                    // ถ้าพิมพ์ 2 ตัวแล้วยังไม่มี : ให้เพิ่ม : อัตโนมัติ
+                    if (value.length === 2 && !value.includes(':') && endTime.length < value.length) {
+                      value = value + ':';
+                    }
+                    // จำกัดความยาว
+                    if (value.length <= 5) {
+                      setEndTime(value);
+                    }
                   }}
-                  className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-24"
+                  onBlur={() => setCurrentPage(1)}
+                  placeholder="23:59"
+                  maxLength={5}
+                  className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 w-24 text-center"
                 />
               </div>
             </div>
